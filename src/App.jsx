@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import './App.css'
+import InicioSesion from './paginas/inicioSesion';
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
-    <div>
-      <h1>Efi-Entregas</h1>
-      <p>Este es efientregas</p>
+    <div className='App'>
+      <InicioSesion />
     </div>
   )
 }

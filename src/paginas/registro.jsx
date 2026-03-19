@@ -50,27 +50,31 @@ function Registro() {
           name="nombre"
           placeholder="Nombre completo"
           onChange={manejarCambio}
+          required
         />
         <input
           type="email"
           name="email"
           placeholder="Correo electrónico"
           onChange={manejarCambio}
+          required
         />
         <input
           type="text"
           name="telefono"
           placeholder="Teléfono"
           onChange={manejarCambio}
+          required
         />
         <input
           type="password"
           name="contraseña"
           placeholder="Contraseña"
           onChange={manejarCambio}
+          required
         />
-        <select name="rol" onChange={manejarCambio} id="tipoUsuario">
-          <option value="">Tipo de usuario</option>
+        <select name="rol" onChange={manejarCambio} id="tipoUsuario" required>
+          <option value="" hidden>Tipo de usuario</option>
           <option value="supervisor">Supervisor</option>
           <option value="repartidor">Repartidor</option>
         </select>

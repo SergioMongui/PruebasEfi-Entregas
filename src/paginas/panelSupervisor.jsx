@@ -84,15 +84,14 @@ function PanelSupervisor() {
   };
 
   const handleArchivoExcel = (e) => {
-    console.log("📂 Archivo detectado");
+    console.log("Archivo detectado");
 
     const archivo = e.target.files[0];
     if (!archivo) {
-      console.log("⚠️ No se seleccionó ningún archivo");
+      console.log("No se seleccionó ningún archivo");
       return;
     }
-    //const archivo = e.target.files[0];
-    //if (!archivo) return;
+
 
     const lector = new FileReader();
 
@@ -110,7 +109,7 @@ function PanelSupervisor() {
         listaProductos: fila["LISTA PRODUCTOS"] || "",
         valor: parseFloat(fila["VALOR"]) || 0,
       }));
-      console.log("📤 Datos a enviar:", datosSinId);
+      console.log("Datos a enviar:", datosSinId);
       setDatosExcel(datosSinId);
 
       try {
@@ -210,7 +209,7 @@ function PanelSupervisor() {
           </div>
         );
 
-      case "plan":
+      case "plan":  
         return (
           <div className="contenido-panel">
             <h2 className="titulo-perfil">Planes de Trabajo</h2>
@@ -353,7 +352,7 @@ function PanelSupervisor() {
     }
   };
 
-  return (
+   return (
     <div className="panel-supervisor">
       <header className="encabezado">
         <div className="logo-titulo">
