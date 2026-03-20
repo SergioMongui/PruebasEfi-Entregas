@@ -10,15 +10,19 @@ function PanelSupervisor() {
 
   const [datosExcel, setDatosExcel] = useState([]);
 
-  const [planesTrabajo, setPlanesTrabajo] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [ordenesDelPlan, setOrdenesDelPlan] = useState([]);
   const [seccionActiva, setSeccionActiva] = useState("perfil");
-  const [modoEdicion, setModoEdicion] = useState(false);
-  const [mensajeConfirmacion, setMensajeConfirmacion] = useState("");
+  const [modoEdicion, setModoEdicion] = useState(false); //Edicion perfil
+  const [mostrarModalUsuarios, setMostrarModalUsuarios] = useState(false); //Editar otros usuarios
   const [ordenesGuardadas, setOrdenesGuardadas] = useState([]);
   const [seleccionadas, setSeleccionadas] = useState([]);
+  const [listaUsuarios, setListaUsuarios] = useState([]);
 
+  //pruebas se puede borrar mas adelante
+  useEffect(() => { console.log("Modal cambió:", mostrarModalUsuarios); }, [mostrarModalUsuarios]);
+
+  //
+
+  //Datos del usuario
   const [datosPerfil, setDatosPerfil] = useState({
     idUsuario: "",
     nombre: "",
@@ -27,33 +31,29 @@ function PanelSupervisor() {
     rol: "",
   });
 
+  //Almacenamiento de la informacion de perfil
   useEffect(() => {
     const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
     if (usuarioGuardado) {
       setDatosPerfil(usuarioGuardado);
     }
-
+    //Almacenamiento de ordenes
     axios
       .get("http://localhost:8080/ordenes")
       .then((res) => setOrdenesGuardadas(res.data))
       .catch((err) => console.error("Error al traer órdenes:", err));
-
-    axios
-      .get("http://localhost:8080/planes-trabajo")
-      .then((res) => setPlanesTrabajo(res.data))
-      .catch((err) => console.error("Error al traer planes", err));
   }, []);
-
+  //Salir
   const salir = () => {
     localStorage.removeItem("usuario");
     navegar("/inicioSesion");
   };
-
+  //Actualicacion de la informacion del formulario perfil
   const handleChange = (e) => {
     const { name, value } = e.target;
     setDatosPerfil({ ...datosPerfil, [name]: value });
   };
-
+  //Guardar cambios de edición perfil
   const guardarCambios = async () => {
     const respuesta = await axios.put(
       `http://localhost:8080/usuarios/${datosPerfil.idUsuario}`,
@@ -64,39 +64,94 @@ function PanelSupervisor() {
     setModoEdicion(false);
   };
 
+  //Eliminar usuario
+  const eliminarUsuario = async (id) => {
+    try {
+      //evitar que se elimine el supervisor
+      if (id === datosPerfil.idUsuario) {
+        alert("No puedes eliminarte a ti mismo");
+        return;
+      }
+      const confirmacion = window.confirm(
+        "¿Estás seguro que deseas eliminar a este usuario de forma permanente?"
+      );
+
+      if (!confirmacion) {
+        return;
+      }
+      await axios.delete(`http://localhost:8080/usuarios/${id}`);
+
+      // Actualiza la lista en pantalla sin recargar
+      setListaUsuarios(listaUsuarios.filter(u => u.idUsuario !== id));
+
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error);
+    }
+  };
+
+  //Listado y cambiar rol de otros usuarios
+  const cambiarRolLocal = (id, nuevoRol) => {
+    setListaUsuarios(prev =>
+      prev.map(usuario =>
+        usuario.idUsuario === id
+          ? { ...usuario, rol: nuevoRol }
+          : usuario
+      )
+    );
+  };
+
+
+
+  const guardarRol = async (usuario) => {
+    try {
+      if (usuario.idUsuario === datosPerfil.idUsuario) {
+        alert("No puedes cambiar tu propio rol");
+        return;
+      }
+      const confirmacion = window.confirm(
+        "¿Estás seguro de cambiar el rol de este usuario?"
+      );
+
+      if (!confirmacion) {
+        return;
+      }
+      const res = await axios.put(
+        `http://localhost:8080/usuarios/${usuario.idUsuario}`,
+        usuario
+      );
+
+      // Actualiza la lista con los cambios al backend
+      setListaUsuarios(prev =>
+        prev.map(u =>
+          u.idUsuario === usuario.idUsuario ? res.data : u
+        )
+      );
+
+    } catch (error) {
+      console.error("Error al actualizar rol:", error);
+    }
+  };
+
+  //Cancelar edicion datos perfil
   const cancelarEdicion = () => {
     const original = JSON.parse(localStorage.getItem("usuario"));
     setDatosPerfil(original);
     setModoEdicion(false);
   };
 
-  const verDetallesPlan = (id) => {
-    axios
-      .get(`http://localhost:8080/ordenes-plan-trabajo`)
-      .then((res) => {
-        const ordenesPlan = res.data.filter(
-          (item) => item.planTrabajo.idPlanTrabajo === id
-        );
-        setOrdenesDelPlan(ordenesPlan.map((op) => op.ordenEnvio));
-        setModalVisible(true);
-      })
-      .catch((err) => console.error("Error al obtener detalles del plan", err));
-  };
-
+  //Leer archivo Excel y convertirlo en datos de órdenes
   const handleArchivoExcel = (e) => {
     console.log("Archivo detectado");
-
     const archivo = e.target.files[0];
     if (!archivo) {
       console.log("No se seleccionó ningún archivo");
       return;
     }
 
-
     const lector = new FileReader();
 
     lector.onload = async (evento) => {
-      console.log("✅ Archivo leído correctamente");
+      console.log("Archivo leído correctamente");
       const datos = new Uint8Array(evento.target.result);
       const workbook = XLSX.read(datos, { type: "array" });
       const hoja = workbook.Sheets[workbook.SheetNames[0]];
@@ -111,7 +166,7 @@ function PanelSupervisor() {
       }));
       console.log("Datos a enviar:", datosSinId);
       setDatosExcel(datosSinId);
-
+      //Envia las ordenes al backend
       try {
         await Promise.all(
           datosSinId.map((orden) =>
@@ -119,42 +174,20 @@ function PanelSupervisor() {
           )
         );
 
-        setMensajeConfirmacion("Órdenes actualizadas.");
-        setTimeout(() => setMensajeConfirmacion(""), 3000);
-
-        // Recargar las órdenes para reflejar las nuevas
+        // Recargar las ordenes para reflejar las nuevas
         const res = await axios.get("http://localhost:8080/ordenes");
         setOrdenesGuardadas(res.data);
       } catch (error) {
-        console.error("Error al enviar datos:", error);
+        console.error("Error al enviar datos", error);
       }
     };
 
     lector.readAsArrayBuffer(archivo);
   };
 
-  const crearPlanTrabajo = () => {
-    axios
-      .post("http://localhost:8080/planes-trabajo/creacion-ordenes", {
-        ordenesIds: seleccionadas,
-      })
-      .then(() => {
-        alert("Plan de trabajo creado");
-        setSeleccionadas([]);
-
-        axios
-          .get("http://localhost:8080/ordenes")
-          .then((res) => setOrdenesGuardadas(res.data));
-        axios
-          .get("http://localhost:8080/planes-trabajo")
-          .then((res) => setPlanesTrabajo(res.data));
-      })
-      .catch((err) => {
-        console.error("Error al crear plan:", err);
-      });
-  };
-
+  //Contenido Base de Supervisor
   const renderContenido = () => {
+
     switch (seccionActiva) {
       case "perfil":
         return (
@@ -188,13 +221,29 @@ function PanelSupervisor() {
                 onChange={handleChange}
                 disabled={!modoEdicion}
               >
-                <option value="Supervisor">Supervisor</option>
-                <option value="Repartidor">Repartidor</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="repartidor">Repartidor</option>
               </select>
               {!modoEdicion ? (
-                <button type="button" onClick={() => setModoEdicion(true)}>
-                  Editar
-                </button>
+                <>
+                  <button type="button" onClick={() => setModoEdicion(true)}>
+                    Editar
+                  </button>
+                  {datosPerfil.rol === "supervisor" && (
+                    <button type="button" onClick={async () => {
+                      try {
+                        const res = await axios.get("http://localhost:8080/usuarios");
+                        setListaUsuarios(res.data);
+                        setMostrarModalUsuarios(true);
+                      } catch (error) {
+                        console.error("Error para traer los usuarios", error);
+                      }
+                    }}>
+                      Editar otro usuario
+                    </button>
+
+                  )}
+                </>
               ) : (
                 <div className="botones-edicion">
                   <button type="button" onClick={guardarCambios}>
@@ -209,30 +258,10 @@ function PanelSupervisor() {
           </div>
         );
 
-      case "plan":  
+      case "plan":
         return (
           <div className="contenido-panel">
             <h2 className="titulo-perfil">Planes de Trabajo</h2>
-            {planesTrabajo.length === 0 ? (
-              <p style={{ textAlign: "center" }}>No hay planes de trabajo</p>
-            ) : (
-              <div className="contenedor-tarjetas">
-                {planesTrabajo.map((plan) => (
-                  <div key={plan.idPlanTrabajo} className="tarjeta-orden">
-                    <h3>Plan #{plan.idPlanTrabajo}</h3>
-                    <p>
-                      <strong>Estado:</strong> {plan.estadoPT}
-                    </p>
-                    <button
-                      onClick={() => verDetallesPlan(plan.idPlanTrabajo)}
-                      className="boton-global"
-                    >
-                      Ver Detalles
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         );
 
@@ -245,21 +274,10 @@ function PanelSupervisor() {
               accept=".xlsx, .xls"
               onChange={handleArchivoExcel}
             />
-            {mensajeConfirmacion && (
-              <p
-                style={{
-                  color: "green",
-                  textAlign: "center",
-                  marginTop: "10px",
-                }}
-              >
-                {mensajeConfirmacion}
-              </p>
-            )}
 
             <div className="contenedor-tarjetas">
               {ordenesGuardadas
-                .filter((orden) => !orden.asignada)
+                // esta ayuda a ver las ordnes que no han sido asignadas = .filter((orden) => !orden.asignada)
                 .map((orden) => (
                   <div key={orden.idOrden} className="tarjeta-orden">
                     <input
@@ -293,57 +311,6 @@ function PanelSupervisor() {
                   </div>
                 ))}
             </div>
-
-            {ordenesGuardadas.length > 0 && (
-              <div style={{ textAlign: "center", marginTop: "20px" }}>
-                <button
-                  className="boton-global"
-                  disabled={seleccionadas.length === 0}
-                  onClick={crearPlanTrabajo}
-                >
-                  Crear Plan de Trabajo
-                </button>
-              </div>
-            )}
-
-            {modalVisible && (
-              <div className="modal-fondo">
-                <div className="modal-contenido">
-                  <h3>Órdenes del Plan</h3>
-                  <button
-                    className="cerrar-modal"
-                    onClick={() => setModalVisible(false)}
-                  >
-                    Cerrar
-                  </button>
-                  {ordenesDelPlan.length === 0 ? (
-                    <p>No hay órdenes asignadas a este plan.</p>
-                  ) : (
-                    <div className="contenedor-tarjetas">
-                      {ordenesDelPlan.map((orden) => (
-                        <div key={orden.idOrden} className="tarjeta-orden">
-                          <p>
-                            <strong>ID:</strong> {orden.idOrden}
-                          </p>
-                          <p>
-                            <strong>Cliente:</strong> {orden.nombreCliente}
-                          </p>
-                          <p>
-                            <strong>Dirección:</strong> {orden.direccion}
-                          </p>
-                          <p>
-                            <strong>Productos:</strong> {orden.listaProductos}
-                          </p>
-                          <p>
-                            <strong>Valor:</strong> ${orden.valor}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         );
 
@@ -352,7 +319,9 @@ function PanelSupervisor() {
     }
   };
 
-   return (
+  //Estructura visual header
+  return (
+    //Base
     <div className="panel-supervisor">
       <header className="encabezado">
         <div className="logo-titulo">
@@ -383,7 +352,42 @@ function PanelSupervisor() {
         </button>
       </nav>
 
+
       {renderContenido()}
+
+      {mostrarModalUsuarios && (
+        <div className="modal-overlay">
+          <div className="modal-contenido">
+            <h3>Usuarios registrados</h3>
+            {listaUsuarios.map((usuario) => (
+              <div key={usuario.idUsuario} className="item-usuario">
+                <p><strong>ID:</strong> {usuario.idUsuario}</p>
+                <p><strong>Nombre:</strong> {usuario.nombre}</p>
+                <select
+                  value={usuario.rol}
+                  onChange={(e) => cambiarRolLocal(usuario.idUsuario, e.target.value)}
+                >
+                  <option value="supervisor">Supervisor</option>
+                  <option value="repartidor">Repartidor</option>
+                </select>
+                <button onClick={() => guardarRol(usuario)}>
+                  Guardar rol
+                </button>
+
+                <button onClick={() => eliminarUsuario(usuario.idUsuario)}>
+                  Eliminar
+                </button>
+
+                <hr />
+              </div>
+            ))}
+
+            <button onClick={() => setMostrarModalUsuarios(false)}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -24,9 +24,19 @@ function InicioSesion() {
         contraseña
       });
 
+      //PRUEBA
+      const usuario = response.data;
+      console.log("USUARIO LOGIN:", usuario);
+      //
+
       if (response.data) {
-        localStorage.setItem("usuario", JSON.stringify(response.data));
-        navegar("/panelSupervisor");
+        const usuario = response.data;
+          localStorage.setItem("usuario", JSON.stringify(usuario));
+          if (usuario.rol === "supervisor") {
+              navegar("/panelSupervisor");
+            } else if (usuario.rol === "repartidor") {
+              navegar("/panelRepartidor");
+}
       } else {
         setError("Correo o contraseña incorrectos");
       }
@@ -34,6 +44,7 @@ function InicioSesion() {
       setError("Error");
       console.error(error);
     }
+
   };
 
   return (
