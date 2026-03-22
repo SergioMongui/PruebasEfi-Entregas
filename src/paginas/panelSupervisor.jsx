@@ -15,12 +15,19 @@ function PanelSupervisor() {
   const [mostrarModalUsuarios, setMostrarModalUsuarios] = useState(false); //Editar otros usuarios
   const [ordenesGuardadas, setOrdenesGuardadas] = useState([]);
   const [listaUsuarios, setListaUsuarios] = useState([]);
-  //Para la eliminacion de tarjetas de ordenes en administrador
 
+  //Para la eliminacion de tarjetas de ordenes en administrador
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
   const [ordenAEliminar, setOrdenAEliminar] = useState(null);
   const [motivoEliminacion, setMotivoEliminacion] = useState("");
+  //
+  //Filtros de estados en historico supervisor
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroId, setFiltroId] = useState("");
 
+  //Asignación
+  const [ordenesSeleccionadas, setOrdenesSeleccionadas] = useState([]);
+  const [mostrarModalAsignar, setMostrarModalAsignar] = useState(false);
 
   //Datos del usuario
   const [datosPerfil, setDatosPerfil] = useState({
@@ -269,6 +276,7 @@ function PanelSupervisor() {
         return (
           <div className="contenido-panel">
             <h2 className="titulo-perfil">Administrador</h2>
+
             <input
               type="file"
               accept=".xlsx, .xls"
@@ -277,8 +285,22 @@ function PanelSupervisor() {
 
             <div className="contenedor-tarjetas">
               {ordenesGuardadas
+                .filter((orden) => orden.estado?.toUpperCase() === "ACTIVA") //filtro que muestra las ordenes con estado ACTIVO, dejandolo en mayus para evitar novedades y mejorar la comunacion con el backend
                 .map((orden) => (
                   <div key={orden.idOrden} className="tarjeta-orden">
+                    <input
+                      type="checkbox"
+                      checked={ordenesSeleccionadas.includes(orden.idOrden)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setOrdenesSeleccionadas([...ordenesSeleccionadas, orden.idOrden]);
+                        } else {
+                          setOrdenesSeleccionadas(
+                            ordenesSeleccionadas.filter((id) => id !== orden.idOrden)
+                          );
+                        }
+                      }}
+                    />
                     <p>
                       <strong>ID Orden:</strong> {orden.idOrden}
                     </p>
@@ -303,11 +325,88 @@ function PanelSupervisor() {
                       Eliminar
                     </button>
                   </div>
+
+                ))}
+            </div>
+            <button
+              onClick={async () => {
+                if (ordenesSeleccionadas.length === 0) {
+                  alert("Debes seleccionar al menos una orden");
+                  return;
+                }
+
+                try {
+                  const res = await axios.get("http://localhost:8080/usuarios"); //vuelve a traer a los usuarios
+                  setListaUsuarios(res.data);
+                  setMostrarModalAsignar(true);
+                } catch (error) {
+                  console.error("Error al traer usuarios", error);
+                }
+              }}
+            >
+              Asignación
+            </button>
+          </div>
+        );
+      case "historico":
+        return (
+          <div className="contenido-panel">
+            <h2 className="titulo-perfil">Histórico de Ordenes</h2>
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="CANCELADA">Canceladas</option>
+              <option value="COMPLETADA">Completadas</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Buscar por ID de orden"
+              value={filtroId}
+              onChange={(e) => setFiltroId(e.target.value)}
+            />
+            <div className="contenedor-tarjetas">
+              {ordenesGuardadas
+                .filter((orden) =>
+                  orden.estado === "CANCELADA" ||
+                  orden.estado === "COMPLETADA"
+                )
+                .filter((orden) =>
+                  filtroEstado === ""
+                    ? true
+                    : orden.estado === filtroEstado
+                )
+                .filter((orden) =>
+                  filtroId === ""
+                    ? true
+                    : orden.idOrden.toString().includes(filtroId)
+                )
+                .map((orden) => (
+                  <div
+                    key={orden.idOrden}
+                    className="tarjeta-orden"
+                    style={{
+                      border:
+                        orden.estado?.toUpperCase() === "CANCELADA"
+                          ? "2px solid red"
+                          : "2px solid green",
+                    }}
+                  >
+                    <p><strong>ID Orden:</strong> {orden.idOrden}</p>
+                    <p><strong>Cliente:</strong> {orden.nombreCliente}</p>
+                    <p><strong>Estado:</strong> {orden.estado}</p>
+
+                    {orden.motivoCancelacion && (
+                      <p>
+                        <strong>Motivo:</strong> {orden.motivoCancelacion}
+                      </p>
+                    )}
+                  </div>
                 ))}
             </div>
           </div>
         );
-
       default:
         return null;
     }
@@ -343,6 +442,12 @@ function PanelSupervisor() {
           onClick={() => setSeccionActiva("admin")}
         >
           Administrador
+        </button>
+        <button
+          className={seccionActiva === "historico" ? "activo" : ""}
+          onClick={() => setSeccionActiva("historico")}
+        >
+          Histórico
         </button>
       </nav>
 
@@ -382,7 +487,7 @@ function PanelSupervisor() {
           </div>
         </div>
       )}
-      
+
       {mostrarModalEliminar && ( //Se utiliza para eliminar ordenes
         <div className="modal-overlay">
           <div className="modal-contenido">
@@ -403,18 +508,21 @@ function PanelSupervisor() {
               <button onClick={() => setMostrarModalEliminar(false)}>
                 Cancelar
               </button>
-              
+
               <button
                 onClick={async () => { //Boton de confirmacion de la eliminación envia la informacion al backend y actualiza la pagina
-                  
+
                   if (!motivoEliminacion.trim()) {
                     alert("Debe escribir un motivo para eliminar la orden");
                     return;
                   }
 
                   try {
-                    await axios.delete(
-                      `http://localhost:8080/ordenes/${ordenAEliminar.idOrden}`
+                    await axios.put(
+                      `http://localhost:8080/ordenes/cancelar/${ordenAEliminar.idOrden}`,
+                      {
+                        motivoCancelacion: motivoEliminacion,
+                      }
                     );
 
                     setOrdenesGuardadas((prev) =>
@@ -433,6 +541,63 @@ function PanelSupervisor() {
                 Confirmar eliminación
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalAsignar && ( //Modal para ver las asignaciones 
+        <div className="modal-overlay">
+          <div className="modal-contenido">
+            <h3>Asignar ordenes</h3>
+            <p>ID ordenes seleccionadas:</p>
+            <p>{ordenesSeleccionadas.join(", ")}</p>
+
+            {listaUsuarios
+              .filter((usuario) => usuario.rol === "repartidor")
+              .map((usuario) => (
+                <div
+                  key={usuario.idUsuario}
+                  className="item-usuario"
+                  style={{ textAlign: "left" }}
+                >
+                  <p><strong>ID:</strong> {usuario.idUsuario}</p>
+                  <p><strong>Nombre:</strong> {usuario.nombre}</p>
+                  <p><strong>Email:</strong> {usuario.email}</p>
+                  <p><strong>Teléfono:</strong> {usuario.telefono}</p>
+
+                  
+                  <button //Boton para realizar la asignacion de una orden a un usuario
+                    onClick={async () => {
+                      try {
+                        await axios.put("http://localhost:8080/ordenes/asignar", {
+                          idUsuario: usuario.idUsuario,
+                          ordenes: ordenesSeleccionadas,
+                        });
+
+                        alert("Ordenes asignadas correctamente");
+
+                        setMostrarModalAsignar(false);
+                        setOrdenesSeleccionadas([]);
+
+                        // refrescar órdenes
+                        const res = await axios.get("http://localhost:8080/ordenes");
+                        setOrdenesGuardadas(res.data);
+
+                      } catch (error) {
+                        alert("Error al asignar órdenes");
+                        console.error(error);
+                      }
+                    }}
+                  >
+                    Asignar
+                  </button>
+                  <hr />
+                </div>
+              ))}
+
+            <button onClick={() => setMostrarModalAsignar(false)}>
+              Cerrar
+            </button>
           </div>
         </div>
       )}
