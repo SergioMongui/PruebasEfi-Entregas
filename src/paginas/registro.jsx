@@ -43,7 +43,7 @@ function Registro() {
 
   return (
     <div className="registro-contenedor">
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", justifyContent: "left" }}>
         <button onClick={() => navigate("/inicioSesion")}>
           Volver
         </button>

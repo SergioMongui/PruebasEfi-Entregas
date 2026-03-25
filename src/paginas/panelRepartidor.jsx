@@ -10,6 +10,16 @@ function PanelRepartidor() {
     const navegar = useNavigate();
 
     const [seccionActiva, setSeccionActiva] = useState("perfil");
+    const [ordenes, setOrdenes] = useState([]);
+    const [mostrarModal, setMostrarModal] = useState(false);
+    const [mostrarModalCompletar, setMostrarModalCompletar] = useState(false);
+    const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
+    const [estadoOrden, setEstadoOrden] = useState("COMPLETADA");
+    const [comentarios, setComentarios] = useState("");
+
+    //Mostrar planes asociados al repartidor y ver detalles de las ordenes
+    const [planes, setPlanes] = useState([]);
+    const [planSeleccionado, setPlanSeleccionado] = useState(null);
 
     //Salir
     const salir = () => {
@@ -25,7 +35,6 @@ function PanelRepartidor() {
         telefono: "",
         rol: "",
     });
-
     //Activar-desactivar edicion
     const [modoEdicion, setModoEdicion] = useState(false);
 
@@ -34,8 +43,30 @@ function PanelRepartidor() {
         const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
         if (usuarioGuardado) {
             setDatosPerfil(usuarioGuardado);
+            //Traer los planes del repartidor
+            axios
+                .get(`http://localhost:8080/planes/usuario/${usuarioGuardado.idUsuario}`)
+                .then((res) => {
+                    setPlanes(res.data);
+                })
+                .catch((err) => console.error("Error al traer planes", err));
+            //consulta la informacion de las ordenes con el backend
+            axios
+                .get("http://localhost:8080/ordenes")
+                .then((res) => {
+                    setOrdenes(res.data);
+                    console.log("ORDENES:", res.data);
+                })
+                .catch((err) => console.error("Error al traer ordenes", err));
         }
     }, []);
+
+    //realiza filtro de todoas las ordenes para consultar solo la seleccionada
+    const ordenesDelPlan = ordenes.filter(
+        (orden) =>
+            String(orden.planTrabajo?.idPlanTrabajo) ===
+            String(planSeleccionado?.idPlanTrabajo)
+    );
 
     //ingreso de la informacion por inputs
     const handleChange = (e) => {
@@ -52,6 +83,24 @@ function PanelRepartidor() {
         localStorage.setItem("usuario", JSON.stringify(respuesta.data));
         setModoEdicion(false);
     };
+
+    //Funcion para cambiar estado orden y guardar comentarios
+    const actualizarEstadoOrden = async (idOrden, estado, comentario) => {
+    try {
+        const response = await axios.put(
+            `http://localhost:8080/ordenes/${idOrden}/estado`,
+            {
+                estado: estado,
+                comentario: comentario
+            }
+        );
+
+        console.log("Orden actualizada:", response.data);
+
+    } catch (error) {
+        console.error("Error al actualizar orden:", error);
+    }
+};
 
     const cancelarEdicion = () => {
         const original = JSON.parse(localStorage.getItem("usuario"));
@@ -119,6 +168,30 @@ function PanelRepartidor() {
                 return (
                     <div className="contenido-panel">
                         <h2 className="titulo-perfil">Planes de Trabajo</h2>
+
+                        <div className="contenedor-tarjetas">
+                            {planes.length > 0 ? (
+                                planes.map((plan) => (
+                                    <div key={plan.idPlanTrabajo} className="tarjeta-orden">
+                                        <p><strong>Plan:</strong> #{plan.idPlanTrabajo}</p>
+                                        <p><strong>Fecha:</strong> {new Date(plan.fecha).toLocaleString()}</p>
+                                        <p><strong>Estado:</strong> {plan.estado}</p>
+
+                                        <button
+                                            onClick={() => {
+                                                setPlanSeleccionado(plan);
+                                                setMostrarModal(true);
+                                            }}
+                                        >
+                                            Ver detalles
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <p>No tienes planes asignados</p>
+                            )}
+                        </div>
+
                     </div>
                 );
 
@@ -131,9 +204,9 @@ function PanelRepartidor() {
                             accept=".xlsx, .xls"
                             onChange={handleArchivoExcel}
                         />
-            ///Esto se debe cambiar ya que hace parte del supervisor
+                        /
                         <div className="contenedor-tarjetas">
-                            {ordenesGuardadas
+                            {ordenesGuardadas //esto sera eliminado
                                 // esta ayuda a ver las ordnes que no han sido asignadas = .filter((orden) => !orden.asignada)
                                 .map((orden) => (
                                     <div key={orden.idOrden} className="tarjeta-orden">
@@ -208,6 +281,107 @@ function PanelRepartidor() {
                 </button>
             </nav>
             {renderContenido()}
+
+            {mostrarModal && planSeleccionado && ( //Enseñar ordenes
+                <div className="modal-overlay">
+                    <div className="modal-contenido">
+
+                        <h2>Plan #{planSeleccionado.idPlanTrabajo}</h2>
+                        <p><strong>Estado:</strong> {planSeleccionado.estado}</p>
+                        <p><strong>Fecha:</strong> {new Date(planSeleccionado.fecha).toLocaleString()}</p>
+
+                        <h3>Ordenes:</h3>
+
+                        <div className="contenedor-tarjetas">
+                            {ordenesDelPlan.length > 0 ? (
+                                ordenesDelPlan.map((orden) => (
+                                    <div key={orden.idOrden} className="tarjeta-orden">
+                                        <p><strong>ID:</strong> {orden.idOrden}</p>
+                                        <p><strong>Cliente:</strong> {orden.nombreCliente}</p>
+                                        <p><strong>Dirección:</strong> {orden.direccion}</p>
+                                        <p><strong>Estado:</strong> {orden.estado}</p>
+
+                                        <button
+                                            onClick={() => {
+                                                setOrdenSeleccionada(orden);
+                                                setMostrarModalCompletar(true);
+                                            }}
+                                        >
+                                            Completar
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <p>No hay ordenes en este plan</p>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setMostrarModal(false);
+                                setPlanSeleccionado(null);
+                            }}
+                        >
+                            Cerrar
+                        </button>
+
+                    </div>
+                </div>
+            )}
+            {mostrarModalCompletar && ordenSeleccionada && ( //modal para completar o dejar pendientes ordenes
+                <div className="modal-overlay">
+                    <div className="modal-contenido">
+
+                        <h2>Completar Orden #{ordenSeleccionada.idOrden}</h2>
+
+                        <label>Estado de la orden:</label>
+                        <select
+                            value={estadoOrden}
+                            onChange={(e) => setEstadoOrden(e.target.value)}
+                        >
+                            <option value="COMPLETADA">Completada</option>
+                            <option value="PENDIENTE">Pendiente</option>
+                        </select>
+                        <br />
+                        <br />
+                        <label>Comentarios:</label>
+                        <br />
+                        <br />
+                        <textarea
+                            placeholder="Observaciones..."
+                            value={comentarios}
+                            onChange={(e) => setComentarios(e.target.value)}
+                        ></textarea>
+
+                        <div style={{ marginTop: "15px" }}>
+                            <button
+                                onClick={() => {
+                                    setMostrarModalCompletar(false);
+                                    setOrdenSeleccionada(null);
+                                }}
+                            >
+                                Volver
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    const confirmar = window.confirm(
+                                        `¿Esta seguro que deseas cambiar el estado de la orden #${ordenSeleccionada.idOrden}?`
+                                    );
+
+                                    if (!confirmar) return;
+
+                                    console.log("Estado:", estadoOrden);
+                                    console.log("Comentarios:", comentarios);
+                                }}
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

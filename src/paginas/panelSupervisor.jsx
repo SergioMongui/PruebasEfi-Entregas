@@ -47,8 +47,6 @@ const ordenesDelPlan = ordenesGuardadas.filter(
     String(planSeleccionado?.idPlanTrabajo)
 );
 
-  console.log("ORDENES:", ordenesGuardadas);
-
   //Almacenamiento de la informacion de perfil
   useEffect(() => {
     const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
