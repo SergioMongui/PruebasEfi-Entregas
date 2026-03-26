@@ -86,26 +86,67 @@ function PanelRepartidor() {
 
     //Funcion para cambiar estado orden y guardar comentarios
     const actualizarEstadoOrden = async (idOrden, estado, comentario) => {
-    try {
-        const response = await axios.put(
-            `http://localhost:8080/ordenes/${idOrden}/estado`,
-            {
-                estado: estado,
-                comentario: comentario
+        try {
+            const response = await axios.put(
+                `http://localhost:8080/ordenes/${idOrden}/estado`,
+                {
+                    estado: estado,
+                    comentario: comentario
+                }
+            );
+            //trae las ordenes 
+            const res = await axios.get("http://localhost:8080/ordenes");
+            const todasLasOrdenes = res.data;
+            setOrdenes(todasLasOrdenes);
+
+            //Compara las ordenes totales con las ordenes que coinciden con el plan de trabajo seleccionado
+            const idPlanActual = planSeleccionado.idPlanTrabajo;
+            const ordenesDeEstePlan = todasLasOrdenes.filter(
+                (o) => String(o.planTrabajo?.idPlanTrabajo) === String(idPlanActual)
+            );
+
+            //Verificar si estan completadas
+            const todasListas = ordenesDeEstePlan.every((o) => o.estado === "COMPLETADA");
+
+            if (todasListas) {
+
+                await axios.put(`http://localhost:8080/planes/${idPlanActual}/estado`, {
+                    estado: "COMPLETADA"
+                });
+
+
+                //Refrescar
+                const resPlanes = await axios.get(`http://localhost:8080/planes/usuario/${datosPerfil.idUsuario}`);
+                setPlanes(resPlanes.data);
             }
-        );
 
-        console.log("Orden actualizada:", response.data);
+            alert("Estado y comentarios actualizados");
 
-    } catch (error) {
-        console.error("Error al actualizar orden:", error);
-    }
-};
+            setMostrarModalCompletar(false);
+            setComentarios("");
+            setMostrarModal(false);
+            setPlanSeleccionado(null);
+        } catch (error) {
+            console.error("Error al actualizar", error);
+        }
+    };
+    //
 
     const cancelarEdicion = () => {
         const original = JSON.parse(localStorage.getItem("usuario"));
         setDatosPerfil(original);
         setModoEdicion(false);
+    };
+
+    //Barra de progreso:
+
+    const calcularProgresoPlan = (idPlan) => {
+        const ordenesDelPlan = ordenes.filter(
+            (o) => String(o.planTrabajo?.idPlanTrabajo) === String(idPlan)
+        );
+        if (ordenesDelPlan.length === 0) return 0;
+        const completadas = ordenesDelPlan.filter((o) => o.estado === "COMPLETADA").length;
+        return Math.round((completadas / ordenesDelPlan.length) * 100);
     };
 
     //Contenido Base de Repartidor
@@ -165,36 +206,60 @@ function PanelRepartidor() {
                 );
 
             case "plan":
+
+                //filtro para planes activos 
+                const planesActivos = planes.filter((plan) => plan.estado !== "COMPLETADA");
                 return (
                     <div className="contenido-panel">
                         <h2 className="titulo-perfil">Planes de Trabajo</h2>
-
                         <div className="contenedor-tarjetas">
-                            {planes.length > 0 ? (
-                                planes.map((plan) => (
-                                    <div key={plan.idPlanTrabajo} className="tarjeta-orden">
-                                        <p><strong>Plan:</strong> #{plan.idPlanTrabajo}</p>
-                                        <p><strong>Fecha:</strong> {new Date(plan.fecha).toLocaleString()}</p>
-                                        <p><strong>Estado:</strong> {plan.estado}</p>
 
-                                        <button
-                                            onClick={() => {
-                                                setPlanSeleccionado(plan);
-                                                setMostrarModal(true);
-                                            }}
-                                        >
-                                            Ver detalles
-                                        </button>
-                                    </div>
-                                ))
+                            {planesActivos.length > 0 ? (
+                                planesActivos.map((plan) => {
+                                    const progreso = calcularProgresoPlan(plan.idPlanTrabajo);
+
+                                    return (
+                                        <div key={plan.idPlanTrabajo} className="tarjeta-orden">
+                                            <p><strong>Plan:</strong> #{plan.idPlanTrabajo}</p>
+                                            <p><strong>Fecha:</strong> {new Date(plan.fecha).toLocaleString()}</p>
+                                            <p><strong>Estado:</strong> {plan.estado}</p>
+                                            <div style={{ marginBottom: "10px" }}>
+                                                <p style={{ fontSize: "0.8rem", marginBottom: "5px" }}>
+                                                    Progreso: {progreso}%
+                                                </p>
+                                                <div style={{
+                                                    width: "100%",
+                                                    backgroundColor: "#e0e0e0",
+                                                    borderRadius: "10px",
+                                                    height: "10px",
+                                                    overflow: "hidden"
+                                                }}>
+                                                    <div style={{
+                                                        width: `${progreso}%`,
+                                                        backgroundColor: progreso === 100 ? "#4caf50" : "#2196f3",
+                                                        height: "100%",
+                                                        transition: "width 0.5s ease-in-out"
+                                                    }}></div>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => {
+                                                    setPlanSeleccionado(plan);
+                                                    setMostrarModal(true);
+                                                }}
+                                            >
+                                                Ver detalles
+                                            </button>
+                                        </div>
+                                    );
+                                })
                             ) : (
                                 <p>No tienes planes asignados</p>
                             )}
                         </div>
-
                     </div>
                 );
-
             case "admin":
                 return (
                     <div className="contenido-panel">
@@ -300,15 +365,22 @@ function PanelRepartidor() {
                                         <p><strong>Cliente:</strong> {orden.nombreCliente}</p>
                                         <p><strong>Dirección:</strong> {orden.direccion}</p>
                                         <p><strong>Estado:</strong> {orden.estado}</p>
-
-                                        <button
-                                            onClick={() => {
-                                                setOrdenSeleccionada(orden);
-                                                setMostrarModalCompletar(true);
-                                            }}
-                                        >
-                                            Completar
-                                        </button>
+                                        {orden.estado === "PENDIENTE" && orden.motivoCancelacion && (
+                                            <p style={{ color: "#d32f2f", fontSize: "0.9rem", marginTop: "-5px" }}>
+                                                <strong>Motivo:</strong> {orden.motivoCancelacion}
+                                            </p>
+                                        )}
+                                        {orden.estado === "COMPLETADA" ? (
+                                            <span className="etiqueta-finalizada">Finalizada</span>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    setOrdenSeleccionada(orden);
+                                                    setMostrarModalCompletar(true);
+                                                }}
+                                            >
+                                                Completar
+                                            </button>)}
                                     </div>
                                 ))
                             ) : (
@@ -370,9 +442,8 @@ function PanelRepartidor() {
                                     );
 
                                     if (!confirmar) return;
-
-                                    console.log("Estado:", estadoOrden);
-                                    console.log("Comentarios:", comentarios);
+                                    console.log("Funciona")
+                                    actualizarEstadoOrden(ordenSeleccionada.idOrden, estadoOrden, comentarios);
                                 }}
                             >
                                 Confirmar

@@ -16,11 +16,12 @@ function PanelSupervisor() {
   const [ordenesGuardadas, setOrdenesGuardadas] = useState([]);
   const [listaUsuarios, setListaUsuarios] = useState([]);
   const [planes, setPlanes] = useState([]);
+  const [filtroPlan, setFiltroPlan] = useState("");
   //Para la eliminacion de tarjetas de ordenes en administrador
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
   const [ordenAEliminar, setOrdenAEliminar] = useState(null);
   const [motivoEliminacion, setMotivoEliminacion] = useState("");
-  //
+
   //Filtros de estados en historico supervisor
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroId, setFiltroId] = useState("");
@@ -41,11 +42,11 @@ function PanelSupervisor() {
   //"Ver detalles" del plan de trabajo muestra las ordenes relacionadas al plan
   const [mostrarModalPlan, setMostrarModalPlan] = useState(false);
   const [planSeleccionado, setPlanSeleccionado] = useState(null);
-const ordenesDelPlan = ordenesGuardadas.filter(
-  (orden) =>
-    String(orden.planTrabajo?.idPlanTrabajo) === 
-    String(planSeleccionado?.idPlanTrabajo)
-);
+  const ordenesDelPlan = ordenesGuardadas.filter(
+    (orden) =>
+      String(orden.planTrabajo?.idPlanTrabajo) ===
+      String(planSeleccionado?.idPlanTrabajo)
+  );
 
   //Almacenamiento de la informacion de perfil
   useEffect(() => {
@@ -423,6 +424,12 @@ const ordenesDelPlan = ordenesGuardadas.filter(
               value={filtroId}
               onChange={(e) => setFiltroId(e.target.value)}
             />
+            <input
+              type="text"
+              placeholder="Buscar por ID Plan"
+              value={filtroPlan}
+              onChange={(e) => setFiltroPlan(e.target.value)}
+            />
             <div className="contenedor-tarjetas">
               {ordenesGuardadas
                 .filter((orden) =>
@@ -439,6 +446,11 @@ const ordenesDelPlan = ordenesGuardadas.filter(
                     ? true
                     : orden.idOrden.toString().includes(filtroId)
                 )
+                .filter((orden) => {
+                  if (filtroPlan === "") return true;
+                  const idPlan = orden.planTrabajo?.idPlanTrabajo;
+                  return idPlan ? idPlan.toString().includes(filtroPlan) : false;
+                })
                 .map((orden) => (
                   <div
                     key={orden.idOrden}
@@ -450,6 +462,9 @@ const ordenesDelPlan = ordenesGuardadas.filter(
                           : "2px solid green",
                     }}
                   >
+                    <p>
+                      <strong>Plan de Trabajo:</strong> {orden.planTrabajo?.idPlanTrabajo ? `#${orden.planTrabajo.idPlanTrabajo}` : "N/A"}
+                    </p>
                     <p><strong>ID Orden:</strong> {orden.idOrden}</p>
                     <p><strong>Cliente:</strong> {orden.nombreCliente}</p>
                     <p><strong>Estado:</strong> {orden.estado}</p>
