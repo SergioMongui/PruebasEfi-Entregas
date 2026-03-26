@@ -35,10 +35,11 @@ function PanelRepartidor() {
         telefono: "",
         rol: "",
     });
+
     //Activar-desactivar edicion
     const [modoEdicion, setModoEdicion] = useState(false);
 
-    //Almacenamiento de la informacion de perfil
+    //Comunicación con el backend para usuarios, planes de trabajo y ordenes
     useEffect(() => {
         const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
         if (usuarioGuardado) {
@@ -68,11 +69,12 @@ function PanelRepartidor() {
             String(planSeleccionado?.idPlanTrabajo)
     );
 
-    //ingreso de la informacion por inputs
+    //ingreso de la informacion por inputs de perfil
     const handleChange = (e) => {
         const { name, value } = e.target;
         setDatosPerfil({ ...datosPerfil, [name]: value });
     };
+
     //Guardar, cambiar y cancelar la edición de datos perfil
     const guardarCambios = async () => {
         const respuesta = await axios.put(
@@ -130,8 +132,8 @@ function PanelRepartidor() {
             console.error("Error al actualizar", error);
         }
     };
-    //
 
+    //Cancelar edición
     const cancelarEdicion = () => {
         const original = JSON.parse(localStorage.getItem("usuario"));
         setDatosPerfil(original);
@@ -139,7 +141,6 @@ function PanelRepartidor() {
     };
 
     //Barra de progreso:
-
     const calcularProgresoPlan = (idPlan) => {
         const ordenesDelPlan = ordenes.filter(
             (o) => String(o.planTrabajo?.idPlanTrabajo) === String(idPlan)
@@ -148,6 +149,11 @@ function PanelRepartidor() {
         const completadas = ordenesDelPlan.filter((o) => o.estado === "COMPLETADA").length;
         return Math.round((completadas / ordenesDelPlan.length) * 100);
     };
+
+    //Filtros para el Historico Planes
+
+    const [filtroIdPlanHist, setFiltroIdPlanHist] = useState("");
+    const [filtroFechaHist, setFiltroFechaHist] = useState("");
 
     //Contenido Base de Repartidor
     const renderContenido = () => {
@@ -260,51 +266,73 @@ function PanelRepartidor() {
                         </div>
                     </div>
                 );
-            case "admin":
+
+            case "historicoPlanes":
+
+                const planesCompletados = planes
+                    .filter((plan) => plan.estado === "COMPLETADA")
+
+                    // filtro por ID
+                    .filter((plan) =>
+                        filtroIdPlanHist === ""
+                            ? true
+                            : plan.idPlanTrabajo.toString().includes(filtroIdPlanHist)
+                    )
+
+                    // filtro por fecha local, igual usado en supervisor
+                    .filter((plan) => {
+                        if (filtroFechaHist === "") return true;
+
+                        const fechaObj = new Date(plan.fecha);
+
+                        const año = fechaObj.getFullYear();
+                        const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
+                        const dia = String(fechaObj.getDate()).padStart(2, "0");
+
+                        const fechaPlan = `${año}-${mes}-${dia}`;
+
+                        return fechaPlan === filtroFechaHist;
+                    });
+
                 return (
                     <div className="contenido-panel">
-                        <h2 className="titulo-perfil">Repartidor</h2>
-                        <input
-                            type="file"
-                            accept=".xlsx, .xls"
-                            onChange={handleArchivoExcel}
-                        />
-                        /
+                        <h2 className="titulo-perfil">Histórico de Planes</h2>
+                        <div style={{ marginBottom: "15px" }}>
+                            <input
+                                type="text"
+                                placeholder="Buscar por ID Plan"
+                                value={filtroIdPlanHist}
+                                onChange={(e) => setFiltroIdPlanHist(e.target.value)}
+                            />
+
+                            <input
+                                type="date"
+                                value={filtroFechaHist}
+                                onChange={(e) => setFiltroFechaHist(e.target.value)}
+                                style={{ marginLeft: "10px" }}
+                            />
+                        </div>
                         <div className="contenedor-tarjetas">
-                            {ordenesGuardadas //esto sera eliminado
-                                // esta ayuda a ver las ordnes que no han sido asignadas = .filter((orden) => !orden.asignada)
-                                .map((orden) => (
-                                    <div key={orden.idOrden} className="tarjeta-orden">
-                                        <input
-                                            type="checkbox"
-                                            checked={seleccionadas.includes(orden.idOrden)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSeleccionadas([...seleccionadas, orden.idOrden]);
-                                                } else {
-                                                    setSeleccionadas(
-                                                        seleccionadas.filter((id) => id !== orden.idOrden)
-                                                    );
-                                                }
+                            {planesCompletados.length > 0 ? (
+                                planesCompletados.map((plan) => (
+                                    <div key={plan.idPlanTrabajo} className="tarjeta-orden">
+                                        <p><strong>Plan:</strong> #{plan.idPlanTrabajo}</p>
+                                        <p><strong>Fecha:</strong> {new Date(plan.fecha).toLocaleString()}</p>
+                                        <p><strong>Estado:</strong> {plan.estado}</p>
+
+                                        <button
+                                            onClick={() => {
+                                                setPlanSeleccionado(plan);
+                                                setMostrarModal(true);
                                             }}
-                                        />
-                                        <p>
-                                            <strong>ID Orden:</strong> {orden.idOrden}
-                                        </p>
-                                        <p>
-                                            <strong>Cliente:</strong> {orden.nombreCliente}
-                                        </p>
-                                        <p>
-                                            <strong>Dirección:</strong> {orden.direccion}
-                                        </p>
-                                        <p>
-                                            <strong>Productos:</strong> {orden.listaProductos}
-                                        </p>
-                                        <p>
-                                            <strong>Valor:</strong> ${orden.valor}
-                                        </p>
+                                        >
+                                            Ver detalles
+                                        </button>
                                     </div>
-                                ))}
+                                ))
+                            ) : (
+                                <p>No tienes planes completados</p>
+                            )}
                         </div>
                     </div>
                 );
@@ -338,11 +366,12 @@ function PanelRepartidor() {
                 >
                     Plan de Trabajo
                 </button>
+
                 <button
-                    className={seccionActiva === "admin" ? "activo" : ""}
-                    onClick={() => setSeccionActiva("admin")}
+                    className={seccionActiva === "historicoPlanes" ? "activo" : ""}
+                    onClick={() => setSeccionActiva("historicoPlanes")}
                 >
-                    Repartidor
+                    Histórico Planes
                 </button>
             </nav>
             {renderContenido()}

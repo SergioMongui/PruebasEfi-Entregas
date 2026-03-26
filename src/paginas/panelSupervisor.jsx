@@ -465,8 +465,8 @@ function PanelSupervisor() {
                     style={{
                       border:
                         orden.estado?.toUpperCase() === "CANCELADA"
-                          ? "2px solid red"
-                          : "2px solid green",
+                           ? "2px solid #9b4845"
+                            : "2px solid #6b916b",
                     }}
                   >
                     <p>
