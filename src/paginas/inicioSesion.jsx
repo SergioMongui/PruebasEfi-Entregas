@@ -74,6 +74,10 @@ function InicioSesion() {
         {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
       </form>
 
+      <button type="button" onClick={() => navegar("/recuperarContrasena")} className="boton-secundario">
+        Olvidé mi contraseña
+      </button>
+
       <button type="button" onClick={irARegistro} className="boton-secundario">
         Registrarse
       </button>

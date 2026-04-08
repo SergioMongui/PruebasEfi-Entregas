@@ -6,6 +6,7 @@ import PanelSupervisor from "./paginas/panelSupervisor";
 import App from './App.jsx';
 import InicioSesion from './paginas/inicioSesion.jsx';
 import PanelRepartidor from "./paginas/panelRepartidor.jsx";
+import RecuperarContrasena from "./paginas/RecuperarContrasena.jsx";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/registro" element={<Registro />} />
         <Route path="/panelSupervisor" element={<PanelSupervisor />} />
         <Route path="/panelRepartidor" element={<PanelRepartidor />} />
+        <Route path="/recuperarContrasena" element={<RecuperarContrasena />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
