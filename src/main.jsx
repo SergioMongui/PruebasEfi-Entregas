@@ -7,6 +7,7 @@ import App from './App.jsx';
 import InicioSesion from './paginas/inicioSesion.jsx';
 import PanelRepartidor from "./paginas/panelRepartidor.jsx";
 import RecuperarContrasena from "./paginas/RecuperarContrasena.jsx";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

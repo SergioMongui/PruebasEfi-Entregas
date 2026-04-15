@@ -465,8 +465,8 @@ function PanelSupervisor() {
                     style={{
                       border:
                         orden.estado?.toUpperCase() === "CANCELADA"
-                           ? "2px solid #9b4845"
-                            : "2px solid #6b916b",
+                          ? "2px solid #9b4845"
+                          : "2px solid #6b916b",
                     }}
                   >
                     <p>
@@ -595,45 +595,78 @@ function PanelSupervisor() {
   return (
     //Base visual
     <div className="panel-supervisor">
-      <header className="encabezado">
-        <div className="logo-titulo">
-          <h1>Efi-Entregas</h1>
-          <img src={logo_SF} alt="Logo SF" className="logoPanel" />
-        </div>
-        <button onClick={salir}>Salir</button>
-      </header>
+      {/* NavBar Moderna */}
+      <nav className="navbar navbar-expand-lg navbar-custom px-4">
+        <div className="container-fluid">
+          {/* Brand/Logo a la izquierda */}
+          <div className="navbar-brand d-flex align-items-center">
+            <img src={logo_SF} alt="Logo" className="logo-navbar me-2" />
+            <span className="navbar-brand-text d-none d-sm-inline">Efi-Entregas</span>
+          </div>
 
-      <nav className="barra-navegacion">
-        <button
-          className={seccionActiva === "perfil" ? "activo" : ""}
-          onClick={() => setSeccionActiva("perfil")}
-        >
-          Perfil
-        </button>
-        <button
-          className={seccionActiva === "plan" ? "activo" : ""}
-          onClick={() => setSeccionActiva("plan")}
-        >
-          Plan de Trabajo
-        </button>
-        <button
-          className={seccionActiva === "admin" ? "activo" : ""}
-          onClick={() => setSeccionActiva("admin")}
-        >
-          Administrador
-        </button>
-        <button
-          className={seccionActiva === "historico" ? "activo" : ""}
-          onClick={() => setSeccionActiva("historico")}
-        >
-          Histórico Ordenes
-        </button>
-        <button
-          className={seccionActiva === "historicoPlanes" ? "activo" : ""}
-          onClick={() => setSeccionActiva("historicoPlanes")}
-        >
-          Histórico Planes de Trabajo
-        </button>
+          {/* Toggler para móviles */}
+          <button
+            className="navbar-toggler border-0"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarNav"
+          >
+            <span className="navbar-toggler-icon"></span>
+          </button>
+
+          {/* Links centrados */}
+          <div className="collapse navbar-collapse" id="navbarNav">
+            <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-3">
+              <li className="nav-item">
+                <button
+                  className={`nav-link-custom ${seccionActiva === "perfil" ? "activo" : ""}`}
+                  onClick={() => setSeccionActiva("perfil")}
+                >
+                  Perfil
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link-custom ${seccionActiva === "plan" ? "activo" : ""}`}
+                  onClick={() => setSeccionActiva("plan")}
+                >
+                  Plan de Trabajo
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link-custom ${seccionActiva === "admin" ? "activo" : ""}`}
+                  onClick={() => setSeccionActiva("admin")}
+                >
+                  Administrador
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link-custom ${seccionActiva === "historico" ? "activo" : ""}`}
+                  onClick={() => setSeccionActiva("historico")}
+                >
+                  Histórico Ordenes
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link-custom ${seccionActiva === "historicoPlanes" ? "activo" : ""}`}
+                  onClick={() => setSeccionActiva("historicoPlanes")}
+                >
+                  Histórico Planes
+                </button>
+              </li>
+            </ul>
+
+            {/* Botón Salir a la derecha */}
+            <div className="d-flex mt-3 mt-lg-0">
+              <button className="btn-salir w-100" onClick={salir}>
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
       </nav>
 
 
