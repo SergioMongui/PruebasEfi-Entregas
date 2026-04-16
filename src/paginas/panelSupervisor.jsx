@@ -36,7 +36,7 @@ function PanelSupervisor() {
   const [ordenesSeleccionadas, setOrdenesSeleccionadas] = useState([]);
   const [mostrarModalAsignar, setMostrarModalAsignar] = useState(false);
 
-  //Datos del usuario
+  // Estados de perfil
   const [datosPerfil, setDatosPerfil] = useState({
     idUsuario: "",
     nombre: "",
@@ -44,6 +44,7 @@ function PanelSupervisor() {
     telefono: "",
     rol: "",
   });
+  const [imagenPerfil, setImagenPerfil] = useState(null); // Estado para la previsualización de la foto de perfil
 
   //"Ver detalles" del plan de trabajo muestra las ordenes relacionadas al plan
   const [mostrarModalPlan, setMostrarModalPlan] = useState(false);
@@ -59,6 +60,11 @@ function PanelSupervisor() {
     const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
     if (usuarioGuardado) {
       setDatosPerfil(usuarioGuardado);
+    }
+    // Cargar imagen de perfil desde localStorage
+    const imagenGuardada = localStorage.getItem("imagenPerfil");
+    if (imagenGuardada) {
+      setImagenPerfil(imagenGuardada);
     }
     //traer las ordenes
     axios
@@ -221,68 +227,131 @@ function PanelSupervisor() {
         return (
           <div className="contenido-panel">
             <h2 className="titulo-perfil">Mi Perfil</h2>
-            <form className="form-perfil">
-              <input
-                type="text"
-                name="nombre"
-                value={datosPerfil.nombre}
-                onChange={handleChange}
-                disabled={!modoEdicion}
-              />
-              <input
-                type="email"
-                name="email"
-                value={datosPerfil.email}
-                onChange={handleChange}
-                disabled={!modoEdicion}
-              />
-              <input
-                type="text"
-                name="telefono"
-                value={datosPerfil.telefono}
-                onChange={handleChange}
-                disabled={!modoEdicion}
-              />
-              <select
-                name="rol"
-                value={datosPerfil.rol}
-                onChange={handleChange}
-                disabled={!modoEdicion}
-              >
-                <option value="supervisor">Supervisor</option>
-                <option value="repartidor">Repartidor</option>
-              </select>
-              {!modoEdicion ? (
-                <>
-                  <button type="button" onClick={() => setModoEdicion(true)}>
-                    Editar
-                  </button>
-                  {datosPerfil.rol === "supervisor" && (
-                    <button type="button" onClick={async () => {
-                      try {
-                        const res = await axios.get("http://localhost:8080/usuarios");
-                        setListaUsuarios(res.data);
-                        setMostrarModalUsuarios(true);
-                      } catch (error) {
-                        console.error("Error para traer los usuarios", error);
-                      }
-                    }}>
-                      Editar otro usuario
-                    </button>
 
-                  )}
-                </>
-              ) : (
-                <div className="botones-edicion">
-                  <button type="button" onClick={guardarCambios}>
-                    Guardar
-                  </button>
-                  <button type="button" onClick={cancelarEdicion}>
-                    Cancelar
-                  </button>
+            <div className="d-flex justify-content-center mt-4">
+              <div className="row g-0 w-100 shadow-sm rounded-4 border overflow-hidden" style={{ maxWidth: "1000px" }}>
+                {/* Columna Izquierda: Imagen (Fondo sutil) */}
+                <div className="col-md-4 d-flex flex-column align-items-center justify-content-center p-5 border-end" style={{ backgroundColor: "#fdfdfd" }}>
+                  <div
+                    className="rounded-circle bg-white d-flex align-items-center justify-content-center mb-4 shadow-sm border"
+                    style={{ width: "160px", height: "160px", overflow: "hidden" }}
+                  >
+                    {imagenPerfil ? (
+                      <img src={imagenPerfil} alt="Perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontSize: "5rem" }}>👤</span>
+                    )}
+                  </div>
+                  <label
+                    className="btn text-white px-4 py-2 fw-medium shadow-sm transition-all"
+                    style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none", cursor: "pointer" }}
+                  >
+                    Cambiar imagen
+                    <input
+                      type="file"
+                      style={{ display: "none" }}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          if (!file.type.startsWith("image/")) {
+                            alert("Por favor seleccione un archivo de imagen válido.");
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            const base64String = reader.result;
+                            setImagenPerfil(base64String);
+                            localStorage.setItem("imagenPerfil", base64String);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
-              )}
-            </form>
+
+                {/* Columna Derecha: Información (Limpia y centrada) */}
+                <div className="col-md-8 bg-white p-4 p-md-5 d-flex flex-column justify-content-center">
+                  <form className="w-100">
+                    <div className="mb-4">
+                      <div className="d-flex flex-column flex-md-row align-items-md-center py-3 border-bottom">
+                        <span className="text-muted text-uppercase small fw-bold mb-1 mb-md-0" style={{ width: "120px", fontSize: "0.7rem", letterSpacing: "0.5px" }}>Nombre:</span>
+                        <div className="flex-grow-1">
+                          {modoEdicion ? (
+                            <input type="text" name="nombre" className="form-control form-control-sm" value={datosPerfil.nombre} onChange={handleChange} />
+                          ) : (
+                            <span className="text-dark" style={{ fontSize: "1rem", fontWeight: "500" }}>{datosPerfil.nombre}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="d-flex flex-column flex-md-row align-items-md-center py-3 border-bottom">
+                        <span className="text-muted text-uppercase small fw-bold mb-1 mb-md-0" style={{ width: "120px", fontSize: "0.7rem", letterSpacing: "0.5px" }}>Email:</span>
+                        <div className="flex-grow-1 text-break">
+                          {modoEdicion ? (
+                            <input type="email" name="email" className="form-control form-control-sm" value={datosPerfil.email} onChange={handleChange} />
+                          ) : (
+                            <span className="text-dark" style={{ fontSize: "1rem", fontWeight: "500" }}>{datosPerfil.email}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="d-flex flex-column flex-md-row align-items-md-center py-3 border-bottom">
+                        <span className="text-muted text-uppercase small fw-bold mb-1 mb-md-0" style={{ width: "120px", fontSize: "0.7rem", letterSpacing: "0.5px" }}>Teléfono:</span>
+                        <div className="flex-grow-1">
+                          {modoEdicion ? (
+                            <input type="text" name="telefono" className="form-control form-control-sm" value={datosPerfil.telefono} onChange={handleChange} />
+                          ) : (
+                            <span className="text-dark" style={{ fontSize: "1rem", fontWeight: "500" }}>{datosPerfil.telefono}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="d-flex flex-column flex-md-row align-items-md-center py-3 border-bottom">
+                        <span className="text-muted text-uppercase small fw-bold mb-1 mb-md-0" style={{ width: "120px", fontSize: "0.7rem", letterSpacing: "0.5px" }}>Rol:</span>
+                        <div className="flex-grow-1">
+                          {modoEdicion ? (
+                            <select name="rol" className="form-select form-select-sm" value={datosPerfil.rol} onChange={handleChange}>
+                              <option value="supervisor">Supervisor</option>
+                              <option value="repartidor">Repartidor</option>
+                            </select>
+                          ) : (
+                            <span className="text-dark text-capitalize" style={{ fontSize: "1rem", fontWeight: "500" }}>{datosPerfil.rol}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="d-flex gap-2 mt-2">
+                      {!modoEdicion ? (
+                        <>
+                          <button className="btn btn-lg text-white shadow-sm flex-grow-1 py-2" style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }} type="button" onClick={() => setModoEdicion(true)}>
+                            Editar
+                          </button>
+                          {datosPerfil.rol === "supervisor" && (
+                            <button className="btn btn-lg text-white shadow-sm flex-grow-1 py-2" style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }} type="button" onClick={async () => {
+                              try {
+                                const res = await axios.get("http://localhost:8080/usuarios");
+                                setListaUsuarios(res.data);
+                                setMostrarModalUsuarios(true);
+                              } catch (error) { console.error(error); }
+                            }}>
+                              Editar otro usuario
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="d-flex gap-2 w-100">
+                          <button className="btn btn-lg text-white flex-grow-1 py-2" style={{ backgroundColor: "#8a0d0d", border: "none" }} type="button" onClick={guardarCambios}>Guardar</button>
+                          <button className="btn btn-lg btn-outline-secondary flex-grow-1 py-2" type="button" onClick={cancelarEdicion}>Cancelar</button>
+                        </div>
+                      )}
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
         );
 
@@ -333,7 +402,6 @@ function PanelSupervisor() {
                   ))}
               </tbody>
             </table>
-
           </div>
         );
 
@@ -413,6 +481,7 @@ function PanelSupervisor() {
             </button>
           </div>
         );
+
       case "historico":
         return (
           <div className="contenido-panel">
@@ -587,6 +656,7 @@ function PanelSupervisor() {
           </div>
         );
 
+      default:
         return null;
     }
   };
