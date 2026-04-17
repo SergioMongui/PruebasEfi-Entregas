@@ -115,7 +115,9 @@ html, body {
 }
 
 .form-perfil input:focus,
-.form-perfil select:focus {
+.form-perfil select:focus,
+.form-control:focus,
+.form-select:focus {
     border-color: #8a0d0d;
     outline: none;
     box-shadow: 0 0 0 3px rgba(138, 13, 13, 0.1);

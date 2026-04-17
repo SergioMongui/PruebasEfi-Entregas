@@ -45,10 +45,9 @@ function PanelRepartidor() {
         const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
         if (usuarioGuardado) {
             setDatosPerfil(usuarioGuardado);
-            // Cargar imagen de perfil desde localStorage
-            const imagenGuardada = localStorage.getItem("imagenPerfil");
-            if (imagenGuardada) {
-                setImagenPerfil(imagenGuardada);
+            // Cargar imagen de perfil desde el objeto usuario
+            if (usuarioGuardado.imagenPerfil) {
+                setImagenPerfil(usuarioGuardado.imagenPerfil);
             }
             //Traer los planes del repartidor
             axios
@@ -178,7 +177,7 @@ function PanelRepartidor() {
                                         style={{ width: "160px", height: "160px", overflow: "hidden" }}
                                     >
                                         {imagenPerfil ? (
-                                            <img src={imagenPerfil} alt="Perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                            <img src={`http://localhost:8080${imagenPerfil}`} alt="Perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                         ) : (
                                             <span style={{ fontSize: "5rem" }}>👤</span>
                                         )}
@@ -192,20 +191,32 @@ function PanelRepartidor() {
                                             type="file"
                                             style={{ display: "none" }}
                                             accept="image/*"
-                                            onChange={(e) => {
+                                            onChange={async (e) => {
                                                 const file = e.target.files[0];
                                                 if (file) {
                                                     if (!file.type.startsWith("image/")) {
                                                         alert("Por favor seleccione un archivo de imagen válido.");
                                                         return;
                                                     }
-                                                    const reader = new FileReader();
-                                                    reader.onloadend = () => {
-                                                        const base64String = reader.result;
-                                                        setImagenPerfil(base64String);
-                                                        localStorage.setItem("imagenPerfil", base64String);
-                                                    };
-                                                    reader.readAsDataURL(file);
+                                                    const formData = new FormData();
+                                                    formData.append("archivo", file);
+                                                    try {
+                                                        const res = await axios.put(
+                                                            `http://localhost:8080/usuarios/${datosPerfil.idUsuario}/imagen`,
+                                                            formData,
+                                                            { headers: { "Content-Type": "multipart/form-data" } }
+                                                        );
+                                                        const nuevaRuta = res.data.ruta;
+                                                        setImagenPerfil(nuevaRuta);
+
+                                                        // Actualizar localStorage para persistencia
+                                                        const usuarioActualizado = { ...datosPerfil, imagenPerfil: nuevaRuta };
+                                                        localStorage.setItem("usuario", JSON.stringify(usuarioActualizado));
+                                                        setDatosPerfil(usuarioActualizado);
+                                                    } catch (error) {
+                                                        console.error("Error al subir imagen:", error);
+                                                        alert("Hubo un error al subir la imagen");
+                                                    }
                                                 }
                                             }}
                                         />
@@ -231,7 +242,7 @@ function PanelRepartidor() {
                                                 <span className="text-muted text-uppercase small fw-bold mb-1 mb-md-0" style={{ width: "120px", fontSize: "0.7rem", letterSpacing: "0.5px" }}>Email:</span>
                                                 <div className="flex-grow-1 text-break">
                                                     {modoEdicion ? (
-                                                        <input type="email" name="email" className="form-control form-control-sm" value={datosPerfil.email} onChange={handleChange} />
+                                                        <input type="email" name="email" className="form-control form-control-sm" value={datosPerfil.email} onChange={handleChange} disabled={datosPerfil.rol === "repartidor"} />
                                                     ) : (
                                                         <span className="text-dark" style={{ fontSize: "1rem", fontWeight: "500" }}>{datosPerfil.email}</span>
                                                     )}
@@ -340,6 +351,8 @@ function PanelRepartidor() {
                                             </div>
 
                                             <button
+                                                className="btn btn-lg text-white shadow-sm w-100 py-2 mt-2"
+                                                style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }}
                                                 onClick={() => {
                                                     setPlanSeleccionado(plan);
                                                     setMostrarModal(true);
@@ -411,6 +424,8 @@ function PanelRepartidor() {
                                         <p><strong>Estado:</strong> {plan.estado}</p>
 
                                         <button
+                                            className="btn btn-lg text-white shadow-sm w-100 py-2 mt-2"
+                                            style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }}
                                             onClick={() => {
                                                 setPlanSeleccionado(plan);
                                                 setMostrarModal(true);
@@ -435,35 +450,64 @@ function PanelRepartidor() {
     //Estructura visual header
     return (
         <div className="panel-supervisor">
-            <header className="encabezado">
-                <div className="logo-titulo">
-                    <h1>Efi-Entregas</h1>
-                    <img src={logo_SF} alt="Logo SF" className="logoPanel" />
+            {/* NavBar Moderna */}
+            <nav className="navbar navbar-expand-lg navbar-custom px-4">
+                <div className="container-fluid">
+                    {/* Brand/Logo a la izquierda */}
+                    <div className="navbar-brand d-flex align-items-center">
+                        <img src={logo_SF} alt="Logo" className="logo-navbar me-2" />
+                        <span className="navbar-brand-text d-none d-sm-inline">Efi-Entregas</span>
+                    </div>
+
+                    {/* Toggler para móviles */}
+                    <button
+                        className="navbar-toggler border-0"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#navbarNav"
+                    >
+                        <span className="navbar-toggler-icon"></span>
+                    </button>
+
+                    {/* Links centrados */}
+                    <div className="collapse navbar-collapse" id="navbarNav">
+                        <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-3">
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link-custom ${seccionActiva === "perfil" ? "activo" : ""}`}
+                                    onClick={() => setSeccionActiva("perfil")}
+                                >
+                                    Perfil
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link-custom ${seccionActiva === "plan" ? "activo" : ""}`}
+                                    onClick={() => setSeccionActiva("plan")}
+                                >
+                                    Plan de Trabajo
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button
+                                    className={`nav-link-custom ${seccionActiva === "historicoPlanes" ? "activo" : ""}`}
+                                    onClick={() => setSeccionActiva("historicoPlanes")}
+                                >
+                                    Histórico Planes
+                                </button>
+                            </li>
+                        </ul>
+
+                        {/* Botón Salir a la derecha */}
+                        <div className="d-flex mt-3 mt-lg-0">
+                            <button className="btn-salir w-100" onClick={salir}>
+                                Salir
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <button onClick={salir}>Salir</button>
-            </header>
-
-            <nav className="barra-navegacion">
-                <button
-                    className={seccionActiva === "perfil" ? "activo" : ""}
-                    onClick={() => setSeccionActiva("perfil")}
-                >
-                    Perfil
-                </button>
-                <button
-                    className={seccionActiva === "plan" ? "activo" : ""}
-                    onClick={() => setSeccionActiva("plan")}
-                >
-                    Plan de Trabajo
-                </button>
-
-                <button
-                    className={seccionActiva === "historicoPlanes" ? "activo" : ""}
-                    onClick={() => setSeccionActiva("historicoPlanes")}
-                >
-                    Histórico Planes
-                </button>
             </nav>
+
             {renderContenido()}
 
             {mostrarModal && planSeleccionado && ( //Enseñar ordenes
@@ -471,12 +515,14 @@ function PanelRepartidor() {
                     <div className="modal-contenido">
 
                         <h2>Plan #{planSeleccionado.idPlanTrabajo}</h2>
-                        <p><strong>Estado:</strong> {planSeleccionado.estado}</p>
-                        <p><strong>Fecha:</strong> {new Date(planSeleccionado.fecha).toLocaleString()}</p>
+                        <div className="d-flex flex-column gap-1 mb-3">
+                            <p className="mb-0"><strong>Estado:</strong> {planSeleccionado.estado}</p>
+                            <p className="mb-0"><strong>Fecha:</strong> {new Date(planSeleccionado.fecha).toLocaleString()}</p>
+                        </div>
 
-                        <h3>Ordenes:</h3>
+                        <h3 className="h5 mb-3">Ordenes:</h3>
 
-                        <div className="contenedor-tarjetas">
+                        <div className="contenedor-tarjetas mb-4">
                             {ordenesDelPlan.length > 0 ? (
                                 ordenesDelPlan.map((orden) => (
                                     <div key={orden.idOrden} className="tarjeta-orden">
@@ -493,6 +539,8 @@ function PanelRepartidor() {
                                             <span className="etiqueta-finalizada">Finalizada</span>
                                         ) : (
                                             <button
+                                                className="btn btn-lg text-white shadow-sm w-100 py-2 mt-2"
+                                                style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }}
                                                 onClick={() => {
                                                     setOrdenSeleccionada(orden);
                                                     setMostrarModalCompletar(true);
@@ -508,6 +556,8 @@ function PanelRepartidor() {
                         </div>
 
                         <button
+                            className="btn btn-lg btn-outline-secondary w-100 py-2"
+                            style={{ borderRadius: "10px" }}
                             onClick={() => {
                                 setMostrarModal(false);
                                 setPlanSeleccionado(null);
@@ -521,31 +571,37 @@ function PanelRepartidor() {
             )}
             {mostrarModalCompletar && ordenSeleccionada && ( //modal para completar o dejar pendientes ordenes
                 <div className="modal-overlay">
-                    <div className="modal-contenido">
+                    <div className="modal-contenido" style={{ maxWidth: "500px" }}>
 
-                        <h2>Completar Orden #{ordenSeleccionada.idOrden}</h2>
+                        <h2 className="mb-4">Completar Orden #{ordenSeleccionada.idOrden}</h2>
 
-                        <label>Estado de la orden:</label>
-                        <select
-                            value={estadoOrden}
-                            onChange={(e) => setEstadoOrden(e.target.value)}
-                        >
-                            <option value="COMPLETADA">Completada</option>
-                            <option value="PENDIENTE">Pendiente</option>
-                        </select>
-                        <br />
-                        <br />
-                        <label>Comentarios:</label>
-                        <br />
-                        <br />
-                        <textarea
-                            placeholder="Observaciones..."
-                            value={comentarios}
-                            onChange={(e) => setComentarios(e.target.value)}
-                        ></textarea>
+                        <div className="mb-3">
+                            <label className="form-label fw-bold">Estado de la orden:</label>
+                            <select
+                                className="form-select"
+                                value={estadoOrden}
+                                onChange={(e) => setEstadoOrden(e.target.value)}
+                            >
+                                <option value="COMPLETADA">Completada</option>
+                                <option value="PENDIENTE">Pendiente</option>
+                            </select>
+                        </div>
 
-                        <div style={{ marginTop: "15px" }}>
+                        <div className="mb-4">
+                            <label className="form-label fw-bold">Comentarios:</label>
+                            <textarea
+                                className="form-control"
+                                rows="3"
+                                placeholder="Observaciones..."
+                                value={comentarios}
+                                onChange={(e) => setComentarios(e.target.value)}
+                            ></textarea>
+                        </div>
+
+                        <div className="d-flex gap-2">
                             <button
+                                className="btn btn-lg btn-outline-secondary flex-grow-1 py-2"
+                                style={{ borderRadius: "10px" }}
                                 onClick={() => {
                                     setMostrarModalCompletar(false);
                                     setOrdenSeleccionada(null);
@@ -555,13 +611,14 @@ function PanelRepartidor() {
                             </button>
 
                             <button
+                                className="btn btn-lg text-white shadow-sm flex-grow-1 py-2"
+                                style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }}
                                 onClick={() => {
                                     const confirmar = window.confirm(
                                         `¿Esta seguro que deseas cambiar el estado de la orden #${ordenSeleccionada.idOrden}?`
                                     );
 
                                     if (!confirmar) return;
-                                    console.log("Funciona")
                                     actualizarEstadoOrden(ordenSeleccionada.idOrden, estadoOrden, comentarios);
                                 }}
                             >

@@ -4,6 +4,7 @@ import logo_SF from "../assets/logo_SF.png";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import Registro from "./Registro";
 
 function PanelSupervisor() {
   const navegar = useNavigate();
@@ -13,6 +14,7 @@ function PanelSupervisor() {
   const [seccionActiva, setSeccionActiva] = useState("perfil");
   const [modoEdicion, setModoEdicion] = useState(false); //Edicion perfil
   const [mostrarModalUsuarios, setMostrarModalUsuarios] = useState(false); //Editar otros usuarios
+  const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false); // Registro de nuevos usuarios
   const [ordenesGuardadas, setOrdenesGuardadas] = useState([]);
   const [listaUsuarios, setListaUsuarios] = useState([]);
   const [planes, setPlanes] = useState([]);
@@ -60,11 +62,10 @@ function PanelSupervisor() {
     const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
     if (usuarioGuardado) {
       setDatosPerfil(usuarioGuardado);
-    }
-    // Cargar imagen de perfil desde localStorage
-    const imagenGuardada = localStorage.getItem("imagenPerfil");
-    if (imagenGuardada) {
-      setImagenPerfil(imagenGuardada);
+      // Cargar imagen de perfil desde el objeto usuario
+      if (usuarioGuardado.imagenPerfil) {
+        setImagenPerfil(usuarioGuardado.imagenPerfil);
+      }
     }
     //traer las ordenes
     axios
@@ -237,7 +238,7 @@ function PanelSupervisor() {
                     style={{ width: "160px", height: "160px", overflow: "hidden" }}
                   >
                     {imagenPerfil ? (
-                      <img src={imagenPerfil} alt="Perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={`http://localhost:8080${imagenPerfil}`} alt="Perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <span style={{ fontSize: "5rem" }}>👤</span>
                     )}
@@ -251,20 +252,32 @@ function PanelSupervisor() {
                       type="file"
                       style={{ display: "none" }}
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files[0];
                         if (file) {
                           if (!file.type.startsWith("image/")) {
                             alert("Por favor seleccione un archivo de imagen válido.");
                             return;
                           }
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            const base64String = reader.result;
-                            setImagenPerfil(base64String);
-                            localStorage.setItem("imagenPerfil", base64String);
-                          };
-                          reader.readAsDataURL(file);
+                          const formData = new FormData();
+                          formData.append("archivo", file);
+                          try {
+                            const res = await axios.put(
+                              `http://localhost:8080/usuarios/${datosPerfil.idUsuario}/imagen`,
+                              formData,
+                              { headers: { "Content-Type": "multipart/form-data" } }
+                            );
+                            const nuevaRuta = res.data.ruta;
+                            setImagenPerfil(nuevaRuta);
+
+                            // Actualizar localStorage para persistencia
+                            const usuarioActualizado = { ...datosPerfil, imagenPerfil: nuevaRuta };
+                            localStorage.setItem("usuario", JSON.stringify(usuarioActualizado));
+                            setDatosPerfil(usuarioActualizado);
+                          } catch (error) {
+                            console.error("Error al subir imagen:", error);
+                            alert("Hubo un error al subir la imagen");
+                          }
                         }
                       }}
                     />
@@ -330,15 +343,25 @@ function PanelSupervisor() {
                             Editar
                           </button>
                           {datosPerfil.rol === "supervisor" && (
-                            <button className="btn btn-lg text-white shadow-sm flex-grow-1 py-2" style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }} type="button" onClick={async () => {
-                              try {
-                                const res = await axios.get("http://localhost:8080/usuarios");
-                                setListaUsuarios(res.data);
-                                setMostrarModalUsuarios(true);
-                              } catch (error) { console.error(error); }
-                            }}>
-                              Editar otro usuario
-                            </button>
+                            <>
+                              <button className="btn btn-lg text-white shadow-sm flex-grow-1 py-2" style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }} type="button" onClick={async () => {
+                                try {
+                                  const res = await axios.get("http://localhost:8080/usuarios");
+                                  setListaUsuarios(res.data);
+                                  setMostrarModalUsuarios(true);
+                                } catch (error) { console.error(error); }
+                              }}>
+                                Editar otro usuario
+                              </button>
+                              <button
+                                className="btn btn-lg text-white shadow-sm flex-grow-1 py-2"
+                                style={{ backgroundColor: "#8a0d0d", borderRadius: "10px", border: "none" }}
+                                type="button"
+                                onClick={() => setMostrarModalRegistro(true)}
+                              >
+                                Crear usuario
+                              </button>
+                            </>
                           )}
                         </>
                       ) : (
@@ -742,36 +765,118 @@ function PanelSupervisor() {
 
       {renderContenido()}
 
-      {mostrarModalUsuarios && ( //Funciona como ventana emergente y realizar la edicion de rol o eliminacion de ususarios (solo para supervisor)
-        <div className="modal-overlay">
-          <div className="modal-contenido">
-            <h3>Usuarios registrados</h3>
-            {listaUsuarios.map((usuario) => (
-              <div key={usuario.idUsuario} className="item-usuario">
-                <p><strong>ID:</strong> {usuario.idUsuario}</p>
-                <p><strong>Nombre:</strong> {usuario.nombre}</p>
-                <select
-                  value={usuario.rol}
-                  onChange={(e) => cambiarRolLocal(usuario.idUsuario, e.target.value)}
-                >
-                  <option value="supervisor">Supervisor</option>
-                  <option value="repartidor">Repartidor</option>
-                </select>
-                <button onClick={() => guardarRol(usuario)}>
-                  Guardar rol
-                </button>
+      {mostrarModalRegistro && (
+        <Registro onClose={() => setMostrarModalRegistro(false)} />
+      )}
 
-                <button onClick={() => eliminarUsuario(usuario.idUsuario)}>
-                  Eliminar
-                </button>
-
-                <hr />
-              </div>
-            ))}
-
-            <button onClick={() => setMostrarModalUsuarios(false)}>
-              Cerrar
+      {mostrarModalUsuarios && (
+        <div className="modal-overlay" onClick={() => setMostrarModalUsuarios(false)}>
+          <div className="modal-contenido" style={{ maxWidth: "1050px", position: "relative" }} onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setMostrarModalUsuarios(false)}
+              style={{
+                position: "absolute",
+                top: "15px",
+                right: "20px",
+                background: "transparent",
+                border: "none",
+                fontSize: "1.8rem",
+                cursor: "pointer",
+                color: "#666",
+                lineHeight: "1"
+              }}
+            >
+              &times;
             </button>
+
+            <h2 className="mb-4" style={{ color: "#8a0d0d", fontWeight: "800", textAlign: "left" }}>Gestión de Usuarios</h2>
+
+            <div className="d-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: "20px" }}>
+              {listaUsuarios.map((usuario) => (
+                <div key={usuario.idUsuario} className="tarjeta-usuario" style={{
+                  background: "white",
+                  border: "1px solid #dee2e6",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  display: "flex",
+                  gap: "15px",
+                  alignItems: "center",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                }}>
+                  {/* Imagen Izquierda */}
+                  <div style={{
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    background: "#f8f9fa",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px solid #eee",
+                    flexShrink: 0
+                  }}>
+                    {usuario.imagenPerfil ? (
+                      <img src={`http://localhost:8080${usuario.imagenPerfil}`} alt="Perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontSize: "2.5rem" }}>👤</span>
+                    )}
+                  </div>
+
+                  {/* Información Derecha */}
+                  <div className="flex-grow-1" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div className="d-flex justify-content-between align-items-start">
+                      <span className="badge" style={{ backgroundColor: "#f8d7da", color: "#842029", fontSize: "0.7rem" }}>ID: {usuario.idUsuario}</span>
+                      <span className="text-capitalize fw-bold" style={{ color: "#6c757d", fontSize: "0.75rem" }}>{usuario.rol}</span>
+                    </div>
+                    <h5 className="mb-1" style={{ fontSize: "1.1rem", fontWeight: "700", color: "#212529" }}>{usuario.nombre}</h5>
+                    <div style={{ fontSize: "0.85rem", color: "#6c757d" }}>
+                      <p className="mb-0"><i className="bi bi-envelope me-1"></i>{usuario.email}</p>
+                      <p className="mb-0"><i className="bi bi-telephone me-1"></i>{usuario.telefono}</p>
+                    </div>
+
+                    <div className="mt-2 d-flex flex-column gap-2">
+                      <select
+                        className="form-select form-select-sm"
+                        style={{ borderRadius: "8px", backgroundColor: "#f8f9fa" }}
+                        value={usuario.rol}
+                        onChange={(e) => cambiarRolLocal(usuario.idUsuario, e.target.value)}
+                      >
+                        <option value="supervisor">Supervisor</option>
+                        <option value="repartidor">Repartidor</option>
+                      </select>
+
+                      <div className="d-flex gap-2">
+                        <button
+                          className="btn btn-sm text-white flex-grow-1"
+                          style={{ backgroundColor: "#8a0d0d", borderRadius: "8px", fontSize: "0.85rem", padding: "6px 0" }}
+                          onClick={() => guardarRol(usuario)}
+                        >
+                          Guardar Rol
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          style={{ borderRadius: "8px", fontSize: "0.85rem" }}
+                          onClick={() => eliminarUsuario(usuario.idUsuario)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-top text-end">
+              <button
+                className="btn btn-outline-secondary px-4"
+                style={{ borderRadius: "10px" }}
+                onClick={() => setMostrarModalUsuarios(false)}
+              >
+                Cerrar Ventana
+              </button>
+            </div>
           </div>
         </div>
       )}
