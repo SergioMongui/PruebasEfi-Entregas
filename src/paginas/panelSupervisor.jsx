@@ -24,6 +24,9 @@ function PanelSupervisor() {
   const [filtroRepartidorHist, setFiltroRepartidorHist] = useState("");
   const [filtroFechaHist, setFiltroFechaHist] = useState("");
 
+  const [resultadoCarga, setResultadoCarga] = useState(null);
+  const [mostrarResultado, setMostrarResultado] = useState(false);
+
   //Para la eliminacion de tarjetas de ordenes en administrador
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
   const [ordenAEliminar, setOrdenAEliminar] = useState(null);
@@ -173,51 +176,29 @@ function PanelSupervisor() {
     setModoEdicion(false);
   };
 
-  //Leer archivo Excel y convertirlo en datos de ordenes
-  const handleArchivoExcel = (e) => {
-    console.log("Archivo detectado");
+  //Leer archivo Excel y enviarlo al backend para procesamiento masivo
+  const handleArchivoExcel = async (e) => {
     const archivo = e.target.files[0];
-    if (!archivo) {
-      console.log("No se seleccionó ningún archivo");
-      return;
+    if (!archivo) return;
+
+    const formData = new FormData();
+    formData.append("archivo", archivo);
+
+    try {
+      const resp = await axios.post("http://localhost:8080/ordenes/cargar", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      setResultadoCarga(resp.data);
+      setMostrarResultado(true);
+
+      // Recargar las ordenes para reflejar las nuevas
+      const res = await axios.get("http://localhost:8080/ordenes");
+      setOrdenesGuardadas(res.data);
+    } catch (error) {
+      console.error("Error al cargar archivo:", error);
+      alert("Error al procesar el archivo Excel. Verifique el formato.");
     }
-
-    const lector = new FileReader();
-
-    //Lectura de archivo de excel
-    lector.onload = async (evento) => {
-      console.log("Archivo leído correctamente");
-      const datos = new Uint8Array(evento.target.result);
-      const workbook = XLSX.read(datos, { type: "array" });
-      const hoja = workbook.Sheets[workbook.SheetNames[0]];
-      const datosJson = XLSX.utils.sheet_to_json(hoja, { defval: "" });
-
-      const datosSinId = datosJson.map((fila) => ({
-        nombreCliente: fila["NOMBRE CLIENTE"] || "",
-        direccion: fila["DIRECCION"] || "",
-        telefono: fila["TELEFONO"] || "",
-        listaProductos: fila["LISTA PRODUCTOS"] || "",
-        valor: parseFloat(fila["VALOR"]) || 0,
-      }));
-      console.log("Datos a enviar:", datosSinId);
-      setDatosExcel(datosSinId);
-      //Envia las ordenes al backend
-      try {
-        await Promise.all(
-          datosSinId.map((orden) =>
-            axios.post("http://localhost:8080/ordenes", orden)
-          )
-        );
-
-        // Recargar las ordenes para reflejar las nuevas
-        const res = await axios.get("http://localhost:8080/ordenes");
-        setOrdenesGuardadas(res.data);
-      } catch (error) {
-        console.error("Error al enviar datos", error);
-      }
-    };
-
-    lector.readAsArrayBuffer(archivo);
   };
 
   //Contenido Base de Supervisor
@@ -437,7 +418,61 @@ function PanelSupervisor() {
               type="file"
               accept=".xlsx, .xls"
               onChange={handleArchivoExcel}
+              className="form-control"
+              style={{ maxWidth: "400px" }}
             />
+
+            {mostrarResultado && resultadoCarga && (
+              <div className="contenido-panel mt-4 p-4 shadow-sm" style={{ border: "1px solid #dee2e6" }}>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h4 className="mb-0" style={{
+                    color: resultadoCarga.fallidas === 0 ? "#2e7d32" : "#8a0d0d",
+                    fontWeight: "700"
+                  }}>
+                    {resultadoCarga.fallidas === 0 ? "¡Carga Exitosa!" : "Carga con algunas Novedades"}
+                  </h4>
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setMostrarResultado(false)}
+                  >
+                    Cerrar Resultado
+                  </button>
+                </div>
+
+                <div className="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+                  <div className="text-center p-3 flex-grow-1" style={{ background: "#f8f9fa", borderRadius: "10px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+                    <span className="d-block small text-muted text-uppercase fw-bold">Total Filas</span>
+                    <strong style={{ fontSize: "1.8rem", color: "#495057" }}>{resultadoCarga.total}</strong>
+                  </div>
+                  <div className="text-center p-3 flex-grow-1" style={{ background: "#f8f9fa", borderRadius: "10px", borderBottom: "4px solid #2e7d32", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+                    <span className="d-block small text-muted text-uppercase fw-bold">Exitosas</span>
+                    <strong style={{ fontSize: "1.8rem", color: "#2e7d32" }}>{resultadoCarga.exitosas}</strong>
+                  </div>
+                  <div className="text-center p-3 flex-grow-1" style={{ background: "#f8f9fa", borderRadius: "10px", borderBottom: resultadoCarga?.fallidas > 0 ? "4px solid #8a0d0d" : "none", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+                    <span className="d-block small text-muted text-uppercase fw-bold">Fallidas</span>
+                    <strong style={{ fontSize: "1.8rem", color: "#8a0d0d" }}>{resultadoCarga.fallidas}</strong>
+                  </div>
+                </div>
+
+                {resultadoCarga.errores && resultadoCarga.errores.length > 0 && (
+                  <div className="mt-2">
+                    <p className="fw-bold mb-2 small text-muted">Detalles de errores encontrados:</p>
+                    <div style={{ maxHeight: "200px", overflowY: "auto", paddingRight: "5px" }}>
+                      {resultadoCarga.errores.map((err, idx) => (
+                        <div key={idx} className="mb-2 p-2" style={{
+                          background: "#fff5f5",
+                          borderLeft: "4px solid #8a0d0d",
+                          borderRadius: "6px",
+                          fontSize: "0.9rem"
+                        }}>
+                          <strong>Fila {err.fila}</strong> - <span className="text-muted">{err.campo}:</span> {err.error}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="contenedor-tarjetas">
               {ordenesGuardadas
