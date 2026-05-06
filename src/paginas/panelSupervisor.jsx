@@ -414,13 +414,111 @@ function PanelSupervisor() {
           <div className="contenido-panel">
             <h2 className="titulo-perfil">Administrador</h2>
 
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleArchivoExcel}
-              className="form-control"
-              style={{ maxWidth: "400px" }}
-            />
+            {/* Nueva Barra Superior Operativa */}
+            <div className="header-operativo">
+              
+              {/* BLOQUE 1: Carga de Archivo */}
+              <div className="bloque-carga" onClick={() => document.getElementById('input-file-excel').click()}>
+                <div className="icono-carga">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div className="texto-carga">
+                  <h4>Subir archivo Excel</h4>
+                  <p>Selecciona o arrastra tu archivo</p>
+                </div>
+                <input
+                  id="input-file-excel"
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={handleArchivoExcel}
+                  style={{ display: "none" }}
+                />
+              </div>
+
+              {/* BLOQUE 2: Búsqueda y Filtros (Solo visual) */}
+              <div className="bloque-busqueda">
+                <div className="search-input-wrapper">
+                  <span className="search-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  </span>
+                  <input type="text" placeholder="Buscar por cliente, dirección, producto..." />
+                </div>
+                <button className="btn-filtro">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  Filtros
+                </button>
+              </div>
+
+              {/* BLOQUE 3: Resumen Rápido */}
+              <div className="bloque-resumen">
+                <div className="mini-card">
+                  <div className="card-icon-container">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                      <path d="M9 14h6"></path>
+                      <path d="M9 18h6"></path>
+                      <path d="M9 10h6"></path>
+                    </svg>
+                  </div>
+                  <div className="card-info">
+                    <span className="etiqueta">Órdenes pendientes</span>
+                    <span className="valor">{ordenesGuardadas.filter(o => o.estado?.toUpperCase() === "ACTIVA").length}</span>
+                  </div>
+                </div>
+                <div className="mini-card">
+                  <div className="card-icon-container">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="3" width="15" height="13"></rect>
+                      <polyline points="16 8 20 8 23 11 23 16 16 16 16 8"></polyline>
+                      <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                      <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                    </svg>
+                  </div>
+                  <div className="card-info">
+                    <span className="etiqueta">Órdenes asignadas</span>
+                    <span className="valor">{ordenesGuardadas.filter(o => o.planTrabajo).length}</span>
+                  </div>
+                </div>
+                <div className="mini-card accent">
+                  <div className="card-icon-container">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 8v13H3V8"></path>
+                      <path d="M1 3h22v5H1z"></path>
+                      <path d="M10 12h4"></path>
+                    </svg>
+                  </div>
+                  <div className="card-info">
+                    <span className="etiqueta">Total órdenes</span>
+                    <span className="valor">{ordenesGuardadas.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BLOQUE 4: Botón Asignación */}
+              <div className="bloque-asignacion">
+                <button
+                  className="btn-asignacion"
+                  onClick={async () => {
+                    if (ordenesSeleccionadas.length === 0) {
+                      alert("Debes seleccionar al menos una orden");
+                      return;
+                    }
+                    try {
+                      const res = await axios.get("http://localhost:8080/usuarios");
+                      setListaUsuarios(res.data);
+                      setMostrarModalAsignar(true);
+                    } catch (error) {
+                      console.error("Error al traer usuarios", error);
+                    }
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                  Asignar órdenes
+                </button>
+              </div>
+
+            </div>
 
             {mostrarResultado && resultadoCarga && (
               <div className="contenido-panel mt-4 p-4 shadow-sm" style={{ border: "1px solid #dee2e6" }}>
@@ -476,67 +574,94 @@ function PanelSupervisor() {
 
             <div className="contenedor-tarjetas">
               {ordenesGuardadas
-                .filter((orden) => orden.estado?.toUpperCase() === "ACTIVA") //filtro que muestra las ordenes con estado ACTIVO, dejandolo en mayus para evitar novedades y mejorar la comunacion con el backend
+                .filter((orden) => orden.estado?.toUpperCase() === "ACTIVA")
                 .map((orden) => (
-                  <div key={orden.idOrden} className="tarjeta-orden">
-                    <input
-                      type="checkbox"
-                      checked={ordenesSeleccionadas.includes(orden.idOrden)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setOrdenesSeleccionadas([...ordenesSeleccionadas, orden.idOrden]);
-                        } else {
-                          setOrdenesSeleccionadas(
-                            ordenesSeleccionadas.filter((id) => id !== orden.idOrden)
-                          );
-                        }
-                      }}
-                    />
-                    <p>
-                      <strong>ID Orden:</strong> {orden.idOrden}
-                    </p>
-                    <p>
-                      <strong>Cliente:</strong> {orden.nombreCliente}
-                    </p>
-                    <p>
-                      <strong>Dirección:</strong> {orden.direccion}
-                    </p>
-                    <p>
-                      <strong>Productos:</strong> {orden.listaProductos}
-                    </p>
-                    <p>
-                      <strong>Valor:</strong> ${orden.valor}
-                    </p>
-                    <button
-                      onClick={() => {
-                        setOrdenAEliminar(orden);
-                        setMostrarModalEliminar(true);
-                      }}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
+                  <div key={orden.idOrden} className="fila-orden">
+                    {/* [1] Checkbox */}
+                    <div className="col-checkbox">
+                      <input
+                        type="checkbox"
+                        className="custom-checkbox"
+                        checked={ordenesSeleccionadas.includes(orden.idOrden)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setOrdenesSeleccionadas([...ordenesSeleccionadas, orden.idOrden]);
+                          } else {
+                            setOrdenesSeleccionadas(
+                              ordenesSeleccionadas.filter((id) => id !== orden.idOrden)
+                            );
+                          }
+                        }}
+                      />
+                    </div>
 
+                    {/* [2] Icono */}
+                    <div className="col-icono">
+                      <div className="icono-wrapper">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      </div>
+                    </div>
+
+                    {/* [3] ID + Fecha */}
+                    <div className="col-info col-id-fecha">
+                      <p className="texto-principal">ID Orden: {orden.idOrden}</p>
+                      <p className="texto-secundario">Fecha: {orden.fecha || "06/06/2024"}</p>
+                    </div>
+
+                    {/* [4] Cliente */}
+                    <div className="col-info col-cliente">
+                      <span className="label-pequeno">Cliente</span>
+                      <p className="texto-principal">{orden.nombreCliente}</p>
+                    </div>
+
+                    {/* [5] Dirección */}
+                    <div className="col-info col-direccion">
+                      <span className="label-pequeno">Dirección</span>
+                      <p className="texto-principal">{orden.direccion}</p>
+                    </div>
+
+                    {/* [6] Productos */}
+                    <div className="col-info col-productos">
+                      <span className="label-pequeno">Productos</span>
+                      <p className="texto-principal">{orden.listaProductos}</p>
+                    </div>
+
+                    {/* [7] Valor */}
+                    <div className="col-info col-valor">
+                      <span className="label-pequeno">Valor</span>
+                      <p className="texto-principal">${orden.valor}</p>
+                    </div>
+
+                    {/* [8] Estado */}
+                    <div className="col-estado">
+                      <div className="badge-estado pendiente">
+                        <span className="dot-status"></span>
+                        Pendiente
+                      </div>
+                    </div>
+
+                    {/* [9] Acciones */}
+                    <div className="col-acciones">
+                      <button className="btn-accion" title="Ver detalles">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+                      <button className="btn-accion" title="Editar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button 
+                        className="btn-accion delete" 
+                        title="Eliminar"
+                        onClick={() => {
+                          setOrdenAEliminar(orden);
+                          setMostrarModalEliminar(true);
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                    </div>
+                  </div>
                 ))}
             </div>
-            <button
-              onClick={async () => {
-                if (ordenesSeleccionadas.length === 0) {
-                  alert("Debes seleccionar al menos una orden");
-                  return;
-                }
-
-                try {
-                  const res = await axios.get("http://localhost:8080/usuarios"); //vuelve a traer a los usuarios
-                  setListaUsuarios(res.data);
-                  setMostrarModalAsignar(true);
-                } catch (error) {
-                  console.error("Error al traer usuarios", error);
-                }
-              }}
-            >
-              Asignación
-            </button>
           </div>
         );
 
